@@ -176,7 +176,7 @@ nginx:
   # nginx.customConfig -- Custom nginx configuration
   customConfig:
   # nginx.proxyPass -- Custom proxypass url
-  proxyPass: http://localhost:8001
+  proxyPass: http://localhost:8080
 
 postgresql:
   # postgresql.enabled -- Enable the postgresql sub-chart
