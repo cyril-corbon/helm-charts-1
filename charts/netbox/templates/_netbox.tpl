@@ -1,7 +1,6 @@
 {{- define "netbox.common" -}}
 {{- $netboxEnv := include (print $.Template.BasePath "/env-configmap.yaml") . }}
 {{- $netboxSecretEnv := include (print $.Template.BasePath "/env-secret.yaml") . }}
-{{- $nginxConfig := include (print $.Template.BasePath "/nginx-configmap.yaml") . }}
 selector:
   matchLabels:
     {{- include "netbox.selectorLabels" . | nindent 4 }}
@@ -14,7 +13,7 @@ template:
     labels:
       {{- include "netbox.selectorLabels" . | nindent 8 }}
     annotations:
-      checksum/config: {{ print "%s%s%s" $netboxEnv $netboxSecretEnv $nginxConfig | sha256sum }}
+      checksum/config: {{ print "%s%s%s" $netboxEnv $netboxSecretEnv | sha256sum }}
   spec:
   {{- with .Values.imagePullSecrets }}
     imagePullSecrets:
@@ -73,8 +72,6 @@ template:
 {{- end }}
 {{- end }}
         volumeMounts:
-        - name: netbox-static-files
-          mountPath: /opt/netbox/netbox/static/
         - name: netbox-media-files
           mountPath: /etc/netbox/media
         {{- if .Values.initializers }}
@@ -84,14 +81,9 @@ template:
         {{- range $mount := .Values.extraVolumeMounts }}
         - {{ $mount | toYaml | indent 10 | trim }}
         {{- end }}
-      - name: nginx
-        image: "{{ .Values.nginxImage.repository }}:{{ .Values.nginxImage.tag }}"
-        imagePullPolicy: {{ .Values.nginxImage.pullPolicy }}
-        command: ["nginx"]
-        args: ["-c", "/etc/netbox-nginx/nginx.conf", "-g", "daemon off;"]
         ports:
         - name: http
-          containerPort: 80
+          containerPort: 8080
           protocol: TCP
         {{- with .Values.livenessProbe }}
         livenessProbe:
@@ -100,14 +92,6 @@ template:
         {{- with .Values.readinessProbe }}
         readinessProbe:
           {{ . | toYaml | indent 10 | trim }}
-        {{- end }}
-        volumeMounts:
-        - name: nginx-config
-          mountPath: /etc/netbox-nginx/
-        - name: netbox-static-files
-          mountPath: /opt/netbox/netbox/static
-        {{- with .Values.extraVolumeMounts }}
-          {{- toYaml . | nindent 8 }}
         {{- end }}
       {{- range $container := .Values.extraContainers }}
       - {{ $container | toYaml | indent 8 | trim }}
@@ -138,11 +122,6 @@ template:
       configMap:
         name: {{ include "netbox.initializersConfigName" . | quote }}
     {{- end }}
-    - name: nginx-config
-      configMap:
-        name: {{ include "netbox.nginxConfigName" . |quote }}
-    - name: netbox-static-files
-      emptyDir: {}
 {{- if not .Values.persistence.enabled }}
     - name: netbox-media-files
       emptyDir: {}
